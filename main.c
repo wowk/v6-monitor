@@ -183,6 +183,7 @@ static int handle_dhcp_event(int fd, struct link_t* link)
 	char buffer[4096] __attribute__ ((aligned(__alignof__(struct inotify_event))));
     const struct inotify_event *event;
 
+    info("func: %s", __FUNCTION__);
 	while( 0 > (retlen = read(fd, buffer, sizeof(buffer))) && errno == EINTR);
 	if( retlen < 0 ){
         error(errno, "failed to read inode event message");
@@ -455,6 +456,31 @@ int main(int argc, char **argv)
     ret = 0;
 
 RETURN_ERROR:
+
+    struct v6addr_t* addr = NULL;
+    struct v6addr_t* deleted = NULL;
+    TAILQ_FOREACH(addr, &link.v6addrs, entry){
+        if( deleted ){
+            free(deleted);
+            deleted = NULL;
+        }
+        TAILQ_REMOVE(&link.v6addrs, addr, entry);
+    }
+    if( deleted ){
+        free(deleted);
+    }
+
+    deleted = NULL;
+    TAILQ_FOREACH(addr, &link.v6prefixs, entry){
+        if( deleted ){
+            free(deleted);
+            deleted = NULL;
+        }
+        TAILQ_REMOVE(&link.v6addrs, addr, entry);
+    }
+    if( deleted ){
+        free(deleted);
+    }
 
     if (evt_fd >= 0) {
         close(evt_fd);

@@ -40,13 +40,14 @@ static int handle_new_addr_event(struct ifaddrmsg* ifa, struct rtattrs_t* rta, s
 
     if( TAILQ_EMPTY(&link->v6addrs) ){
         link->link_event |= (1 << EVENT_NEW_ADDR);
+        info("new addr: %s\n", ipaddr);
     }else{
         link->link_event |= (1 << EVENT_MORE_ADDR);
+        info("more addr: %s\n", ipaddr);
     }
     new_addr->prefix_len = ifa->ifa_prefixlen;
     memcpy(&new_addr->addr, RTA_DATA(rta->tb[IFA_ADDRESS]), sizeof(struct in6_addr));
     TAILQ_INSERT_HEAD(&link->v6addrs, new_addr, entry);
-    info("new addr: %s\n", ipaddr);
 
     return 0;
 }
@@ -57,13 +58,12 @@ static int handle_new_link_event(struct ifinfomsg* ifi, struct rtattrs_t* rta, s
     if(ifi->ifi_index != link->link_index)
         return 0;
     
-    //uint32_t mask = ((link->link_flags) ^ (ifi->ifi_flags));
     link->link_flags = ifi->ifi_flags;
 
     if( link->link_flags & IFF_RUNNING ){
-        link->link_event |= EVENT_LINK_RUNNING;
+        link->link_event |= (1 << EVENT_LINK_RUNNING);
     }else{
-        link->link_event |= EVENT_LINK_STOP;
+        link->link_event |= (1 << EVENT_LINK_STOP);
         delete_all_address_from_link(link);
     }
 
@@ -85,8 +85,11 @@ static int handle_prefix_event(struct prefixmsg* pref, struct rtattrs_t* rta, st
     if(!(pref->prefix_flags & IF_PREFIX_AUTOCONF))
         return 0;
     
-    //if(0xf0 == (addr->s6_addr[0] & 0xf0) && 0xfc != (addr->s6_addr[0] & 0xfc))
-    //    return 0;
+    uint8_t* paddr = (uint8_t*)(((struct in6_addr*)RTA_DATA(rta->tb[PREFIX_ADDRESS]))->s6_addr);
+    if( (paddr[0] & 0x07) != 0x02 ){
+        return 0;
+    }
+
     char ipaddr[128] = "";
     inet_ntop(AF_INET6, RTA_DATA(rta->tb[PREFIX_ADDRESS]), ipaddr, sizeof(ipaddr));
     
@@ -109,7 +112,7 @@ static int handle_prefix_event(struct prefixmsg* pref, struct rtattrs_t* rta, st
     memcpy(&new_addr->addr, RTA_DATA(rta->tb[PREFIX_ADDRESS]), sizeof(struct in6_addr));
     TAILQ_INSERT_HEAD(&link->v6prefixs, new_addr, entry);
     info("prefix: %s", ipaddr);
-    link->link_event |= EVENT_ADD_PREFIX;
+    link->link_event |= (1 << EVENT_ADD_PREFIX);
 
     return 0;
 }
@@ -142,10 +145,10 @@ static int handle_del_addr_event(struct ifaddrmsg* ifa, struct rtattrs_t* rta, s
     free(addr);
     
     if( TAILQ_EMPTY(&link->v6addrs) ){
-        link->link_event &= ~EVENT_DEL_ADDR;
-        link->link_event |= EVENT_LOST_ADDR;
+        link->link_event &= ~(1u << EVENT_DEL_ADDR);
+        link->link_event |= (1u << EVENT_LOST_ADDR);
     }else{
-        link->link_event |= EVENT_DEL_ADDR;
+        link->link_event |= (1u << EVENT_DEL_ADDR);
     }
 
     return 0;
@@ -158,7 +161,7 @@ static int handle_del_link_event(struct ifinfomsg* ifi, struct rtattrs_t* rta, s
 
     delete_all_address_from_link(link);
 
-    link->link_event |= EVENT_LINK_STOP;
+    link->link_event |= (1 << EVENT_LINK_STOP);
     
     return 0;
 }

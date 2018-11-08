@@ -135,7 +135,8 @@ int handle_link_event(struct link_t* link)
         }
     }
 
-    if( event & EVENT_DHCP6_MODIFIED ){
+    if( event & (1 << EVENT_DHCP6_MODIFIED) ){
+        info("ipv6 info changed");
         //info("tell dhcp6s to send reconfigure");
         //system("killall -USR1 dhcp6s");
         //info("tell RADVD to send RA packet with preferred == 0 and valid == 0");
