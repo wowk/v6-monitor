@@ -17,13 +17,15 @@
 #undef info
 #endif
 
-#define error(errcode, fmt, args...)  do{\
+#define error(need_exit, errcode, fmt, args...)  do{\
     fprintf(stderr, "\033[1;31m");\
     fprintf(stderr, "[ error ] ");\
     fprintf(stderr, fmt, ##args);\
     fprintf(stderr, "  : %s\n", strerror(errcode));\
     fprintf(stderr, "\033[1;0m");\
     fflush(stderr);\
+    if( need_exit )\
+        exit(errcode);\
     }while(0)
 
 #define debug(fmt, args...)do{\
